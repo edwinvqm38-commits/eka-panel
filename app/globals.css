@@ -36,3 +36,79 @@ body {
 .input-error-shake {
   animation: shake-soft 0.25s ease-in-out;
 }
+
+@layer base {
+  /* Estilo general de TODOS los <select> */
+  select {
+    /* Ya tienes `inputBase`, esto sólo afina el focus */
+    @apply focus:outline-none focus:ring-2 focus:ring-sky-300 focus:border-sky-400;
+  }
+
+  /* Estilo del “cuadrito” de opciones */
+  select option {
+    background-color: #f9fafb;      /* gris muy claro */
+    color: #0f172a;                 /* slate-900 */
+    font-size: 0.75rem;             /* 12px aprox, como el resto */
+  }
+
+  /* Placeholder (“Seleccione…”) más grisecito */
+  select option:first-child {
+    color: #9ca3af;                 /* slate-400 */
+  }
+
+  /* Opción seleccionada dentro del menú */
+  select option:checked {
+    background-color: #e0f2fe;      /* sky-100 */
+    color: #0369a1;                 /* sky-700 */
+    font-weight: 600;
+  }
+}
+@layer base {
+  /* RESET del select nativo (quita borde negro feo) */
+  select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+
+    border-radius: 8px;
+    border: 1px solid #d0d7e2; /* slate-300 suave */
+    background-color: white;
+    padding-right: 32px; /* espacio para el icono */
+  }
+
+  /* Estilo del menú desplegable (las opciones) */
+  select option {
+    border-radius: 6px !important;
+    background-color: #f8fafc !important;  /* slate-50 */
+    color: #0f172a !important;              /* slate-900 */
+    padding: 6px 8px;
+    margin: 4px;
+  }
+
+  /* Opción cuando pasas el mouse */
+  select option:hover {
+    background-color: #e0f2fe !important;   /* sky-100 */
+    color: #0369a1 !important;              /* sky-700 */
+  }
+
+  /* Opción seleccionada */
+  select option:checked {
+    background-color: #bae6fd !important;   /* sky-200 */
+    color: #0c4a6e !important;              /* sky-800 */
+    font-weight: 600;
+  }
+}
+@layer base {
+  /* Flecha personalizada */
+  .custom-select {
+    background-image: url("data:image/svg+xml;utf8,<svg fill='none' stroke='%23576b9c' stroke-width='2' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'><path d='M6 9l6 6 6-6'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+  }
+
+  /* Asegurar que no aparezca el ícono nativo */
+  .custom-select::-ms-expand {
+    display: none;  /* IE fix */
+  }
+}

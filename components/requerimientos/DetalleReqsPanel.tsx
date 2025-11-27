@@ -53,27 +53,29 @@ export function DetalleReqsPanel() {
   }, []);
 
   return (
-    <section className="flex flex-col h-full bg-white/90 border border-slate-200 rounded-3xl shadow-xl">
-      {/* HEADER igual estilo que Administrador */}
-      <header className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+    <section className="flex flex-col h-full rounded-3xl border border-slate-100 bg-gradient-to-b from-sky-50/70 to-slate-50/40 shadow-[0_18px_45px_rgba(15,23,42,0.06)]">
+      {/* HEADER con estilo similar a Log de Cotizaciones */}
+      <header className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
         <div>
-          <h1 className="text-sm font-semibold text-slate-800">
+          <h1 className="text-[15px] font-semibold text-slate-900">
             Detalle de Requerimientos
           </h1>
           <p className="text-[11px] text-slate-500">
-            Listado de ítems asociados a los requerimientos registrados.
+            Listado de ítems asociados a los requerimientos registrados en el sistema.
           </p>
         </div>
 
         <button
           type="button"
           onClick={fetchDetalle}
-          className="text-[11px] px-3 py-1.5 rounded-full border border-slate-300 hover:bg-slate-100 transition"
+          className="inline-flex items-center gap-1 text-[11px] px-3 py-1.5 rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-sky-50 hover:border-sky-200 active:scale-[0.98] transition"
         >
-          🔄 Refrescar
+          <span>🔄</span>
+          <span>Refrescar</span>
         </button>
       </header>
 
+      {/* CONTENIDO */}
       <div className="flex-1 p-4 overflow-auto">
         {loading && (
           <div className="text-center text-xs text-slate-500">
@@ -82,92 +84,107 @@ export function DetalleReqsPanel() {
         )}
 
         {!loading && errorMsg && (
-          <div className="text-red-600 text-xs bg-red-50 border border-red-200 p-3 rounded-xl">
+          <div className="text-red-600 text-xs bg-red-50 border border-red-200 px-4 py-3 rounded-2xl">
             {errorMsg}
           </div>
         )}
 
         {!loading && !errorMsg && (
-          <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white">
-            <table className="min-w-full text-xs text-slate-700">
-              <thead className="bg-slate-50 text-[11px] uppercase tracking-wide border-b border-slate-200">
-                <tr>
-                  <th className="px-3 py-2 text-left font-semibold">N° Req</th>
-                  <th className="px-3 py-2 text-left font-semibold">Código</th>
-                  <th className="px-3 py-2 text-left font-semibold">
-                    Descripción
-                  </th>
-                  <th className="px-3 py-2 text-left font-semibold">Unidad</th>
-                  <th className="px-3 py-2 text-left font-semibold">
-                    Cantidad
-                  </th>
-                  <th className="px-3 py-2 text-left font-semibold">OC</th>
-                  <th className="px-3 py-2 text-left font-semibold">Estado</th>
-                  <th className="px-3 py-2 text-left font-semibold">
-                    Fecha reg.
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r, idx) => (
-                  <tr
-                    key={r.id}
-                    className={
-                      idx % 2 === 0
-                        ? "bg-white"
-                        : "bg-slate-50/60 border-t border-slate-100"
-                    }
-                  >
-                    <td className="px-3 py-2">
-                      {r.nro_requerimiento || (
-                        <span className="text-slate-400">—</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2">
-                      {r.codigo || <span className="text-slate-400">—</span>}
-                    </td>
-                    <td className="px-3 py-2 max-w-xs">
-                      <span className="text-[11px] text-slate-700 line-clamp-2">
-                        {r.descripcion || (
+          <div className="mt-1 rounded-3xl border border-slate-100 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.04)] overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full w-full text-[11px] text-slate-700">
+                <thead className="bg-slate-50/80 backdrop-blur-sm uppercase tracking-[0.08em] text-[10px] font-semibold text-slate-500 border-b border-slate-200 sticky top-0 z-10">
+                  <tr>
+                    <th className="px-4 py-3 text-left whitespace-nowrap">
+                      N° Req
+                    </th>
+                    <th className="px-4 py-3 text-left whitespace-nowrap">
+                      Código
+                    </th>
+                    <th className="px-4 py-3 text-left whitespace-nowrap">
+                      Descripción
+                    </th>
+                    <th className="px-4 py-3 text-left whitespace-nowrap">
+                      Unidad
+                    </th>
+                    <th className="px-4 py-3 text-left whitespace-nowrap">
+                      Cantidad
+                    </th>
+                    <th className="px-4 py-3 text-left whitespace-nowrap">
+                      OC
+                    </th>
+                    <th className="px-4 py-3 text-left whitespace-nowrap">
+                      Estado
+                    </th>
+                    <th className="px-4 py-3 text-left whitespace-nowrap">
+                      Fecha reg.
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {rows.map((r) => (
+                    <tr
+                      key={r.id}
+                      className="border-b border-slate-100 hover:bg-sky-50/40 transition-colors"
+                    >
+                      <td className="px-4 py-2 align-middle whitespace-nowrap">
+                        {r.nro_requerimiento || (
                           <span className="text-slate-400">—</span>
                         )}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2">
-                      {r.unidad || <span className="text-slate-400">—</span>}
-                    </td>
-                    <td className="px-3 py-2">
-                      {r.cantidad !== null && r.cantidad !== undefined
-                        ? r.cantidad.toLocaleString("es-PE", {
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 2,
-                          })
-                        : "—"}
-                    </td>
-                    <td className="px-3 py-2">
-                      {r.oc || <span className="text-slate-400">—</span>}
-                    </td>
-                    <td className="px-3 py-2">
-                      {r.estado || <span className="text-slate-400">—</span>}
-                    </td>
-                    <td className="px-3 py-2">
-                      {formatDate(r.created_at)}
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-4 py-2 align-middle whitespace-nowrap">
+                        {r.codigo || (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 align-middle max-w-xs">
+                        <span className="text-[11px] text-slate-700 line-clamp-2">
+                          {r.descripcion || (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 align-middle whitespace-nowrap">
+                        {r.unidad || (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 align-middle whitespace-nowrap">
+                        {r.cantidad !== null && r.cantidad !== undefined
+                          ? r.cantidad.toLocaleString("es-PE", {
+                              minimumFractionDigits: 0,
+                              maximumFractionDigits: 2,
+                            })
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-2 align-middle whitespace-nowrap">
+                        {r.oc || <span className="text-slate-400">—</span>}
+                      </td>
+                      <td className="px-4 py-2 align-middle whitespace-nowrap">
+                        {r.estado || (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 align-middle whitespace-nowrap">
+                        {formatDate(r.created_at)}
+                      </td>
+                    </tr>
+                  ))}
 
-                {rows.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={8}
-                      className="px-3 py-4 text-center text-[11px] text-slate-400"
-                    >
-                      No hay ítems de requerimientos registrados todavía.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  {rows.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        className="px-4 py-5 text-center text-[11px] text-slate-400"
+                      >
+                        No hay ítems de requerimientos registrados todavía.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

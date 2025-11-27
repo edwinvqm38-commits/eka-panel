@@ -191,7 +191,7 @@ function OptionManagerModal({
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm transition-opacity duration-200">
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/30 backdrop-blur-md transition-opacity duration-200">
       <div
         className={`w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-slate-100 p-5 space-y-4 transform transition-all duration-200 ${
           isClosing
@@ -230,7 +230,7 @@ function OptionManagerModal({
           <button
             type="button"
             onClick={handleAdd}
-            className="px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-semibold shadow hover:bg-blue-700 active:scale-95 transition"
+            className="px-4 py-2 rounded-lg bg-sky-600 text-white text-xs font-semibold shadow hover:bg-sky-700 active:scale-95 transition"
           >
             Guardar
           </button>
@@ -273,12 +273,13 @@ function OptionManagerModal({
                     <td className="px-3 py-1.5 text-right space-x-2">
                       {editingId === r.id ? (
                         <>
-                          <button
-                            onClick={handleEditSave}
-                            className="text-[11px] px-2 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50"
-                          >
-                            Guardar
-                          </button>
+                    <button
+                      onClick={handleEditSave}
+                      className="text-[11px] px-2 py-1 rounded border border-sky-500 text-sky-600 hover:bg-sky-50"
+                    >
+                      Guardar
+                    </button>
+
                           <button
                             onClick={() => {
                               setEditingId(null);
@@ -465,9 +466,8 @@ function NewSolicitanteModal({
       : "Nuevo responsable económico";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm transition-opacity duration-200">
-      <div
-        className={`w-full max-w-md rounded-2xl bg-white shadow-2xl border border-blue-100 p-5 space-y-4 transform transition-all duration-200 ${
+<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 backdrop-blur-md transition-opacity duration-200">      <div
+        className={`w-full max-w-md rounded-2xl bg-white shadow-2xl border border-sky-100 p-5 space-y-4 transform transition-all duration-200 ${
           isClosing
             ? "opacity-0 translate-y-2 scale-95"
             : "opacity-100 translate-y-0 scale-100"
@@ -540,7 +540,7 @@ function NewSolicitanteModal({
             type="button"
             onClick={handleSave}
             disabled={loading}
-            className="px-4 py-2 text-xs rounded-lg bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 disabled:opacity-60 flex items-center gap-2"
+            className="px-4 py-2 text-xs rounded-lg bg-sky-600 text-white font-semibold shadow hover:bg-sky-700 disabled:opacity-60 flex items-center gap-2"
           >
             {loading && <Spinner />}
             <span>{loading ? "Guardando…" : "Guardar contacto"}</span>
@@ -633,8 +633,7 @@ function SimpleOptionModal({
   };
 
   return (
-    <div className="fixed inset-0 z-45 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm transition-opacity duration-200">
-      <div
+<div className="fixed inset-0 z-45 flex items-center justify-center bg-slate-900/30 backdrop-blur-md transition-opacity duration-200">      <div
         className={`w-full max-w-sm rounded-2xl bg-white shadow-2xl border border-slate-100 p-5 space-y-4 transform transition-all duration-200 ${
           isClosing
             ? "opacity-0 translate-y-2 scale-95"
@@ -685,7 +684,7 @@ function SimpleOptionModal({
             type="button"
             onClick={handleSave}
             disabled={loading}
-            className="px-4 py-2 text-xs rounded-lg bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 disabled:opacity-60 flex items-center gap-2"
+            className="px-4 py-2 text-xs rounded-lg bg-sky-600 text-white font-semibold shadow hover:bg-sky-700 disabled:opacity-60 flex items-center gap-2"
           >
             {loading && <Spinner />}
             <span>{loading ? "Guardando…" : "Guardar"}</span>
@@ -1469,7 +1468,7 @@ const renderRegistroTab = () => (
                 setCotizacionError(null);
                 validarCotizacionEnSupabase(codigoDisponible ?? "");
               }}
-              className="h-10 w-10 flex items-center justify-center rounded-lg bg-blue-600 text-white text-lg hover:bg-blue-700 active:scale-95 transition"
+              className="h-10 w-10 flex items-center justify-center rounded-lg bg-sky-600 text-white text-lg hover:bg-sky-700 active:scale-95 transition"
               title="Usar código disponible"
             >
               ↻
@@ -1700,23 +1699,24 @@ const renderRegistroTab = () => (
           Archivos adjuntos
         </h3>
 
-        <label className="block">
-          <div className="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center text-xs text-slate-500 hover:border-blue-400 hover:bg-blue-50/40 cursor-pointer transition">
-            <p className="font-medium text-slate-600 mb-1">
-              Seleccionar archivos
-            </p>
-            <p>
-              Haz clic para elegir uno o varios archivos (bases, invitación,
-              ZIP, etc.)
-            </p>
-          </div>
-          <input
-            type="file"
-            multiple
-            className="hidden"
-            onChange={handleArchivosChange}
-          />
-        </label>
+<label className="block">
+  <div className="border-2 border-dashed border-sky-200 rounded-xl p-4 text-center text-xs text-slate-500 bg-sky-50/40 hover:border-sky-400 hover:bg-sky-50 cursor-pointer transition">
+    <p className="font-medium text-slate-600 mb-1">
+      Seleccionar archivos
+    </p>
+    <p>
+      Haz clic para elegir uno o varios archivos (bases, invitación,
+      ZIP, etc.)
+    </p>
+  </div>
+  <input
+    type="file"
+    multiple
+    className="hidden"
+    onChange={handleArchivosChange}
+  />
+</label>
+
 
         {uploads.length > 0 && (
           <ul className="mt-2 space-y-2">
@@ -1734,7 +1734,7 @@ const renderRegistroTab = () => (
                         href={u.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-[14px] text-slate-600 hover:bg-blue-100 hover:text-blue-700 transition shrink-0"
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-[14px] text-slate-600 hover:bg-sky-100 hover:text-sky-700 transition shrink-0"
                         title="Descargar archivo"
                       >
                         ⬇️
@@ -1754,7 +1754,7 @@ const renderRegistroTab = () => (
                   <div className="mt-2 w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                     <div
                       className={`h-full transition-all ${
-                        u.url ? "bg-emerald-500" : "bg-blue-500"
+                        u.url ? "bg-emerald-500" : "bg-sky-500"
                       }`}
                       style={{ width: `${u.progress}%` }}
                     />
@@ -2098,7 +2098,7 @@ const titulo = mode === "new" ? "Nueva Cotización" : "Editar cotización";
         <button
           type="submit"
           disabled={loadingSubmit}
-          className="inline-flex items-center justify-center px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold shadow-md hover:bg-blue-700 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition whitespace-nowrap"
+          className="inline-flex items-center justify-center px-6 py-2.5 rounded-xl bg-sky-600 text-white text-sm font-semibold shadow-md hover:bg-sky-700 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition whitespace-nowrap"
         >
           {loadingSubmit
             ? mode === "new"
@@ -2124,11 +2124,12 @@ const titulo = mode === "new" ? "Nueva Cotización" : "Editar cotización";
             key={id}
             type="button"
             onClick={() => setActiveTab(id as TabId)}
-            className={`pb-2 border-b-2 -mb-px transition whitespace-nowrap ${
-              activeTab === id
-                ? "border-blue-600 text-blue-700"
-                : "border-transparent hover:text-slate-800 hover:border-slate-300"
-            }`}
+className={`pb-2 border-b-2 -mb-px transition whitespace-nowrap ${
+  activeTab === id
+    ? "border-sky-600 text-sky-700"
+    : "border-transparent hover:text-slate-800 hover:border-slate-300"
+}`}
+
           >
             {label}
           </button>

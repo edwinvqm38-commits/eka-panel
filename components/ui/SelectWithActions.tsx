@@ -38,7 +38,7 @@ export function SelectWithActions({
           name={name}
           value={value}
           onChange={onChange}
-          className={`${inputBase} flex-1 bg-white`}
+          className={`${inputBase} flex-1 bg-white custom-select pr-9`}
         >
           <option value="">Seleccione…</option>
           {options.map((o) => (
@@ -53,11 +53,11 @@ export function SelectWithActions({
           <button
             type="button"
             onClick={(e) => {
-              e.preventDefault();   // evita submit del form
-              e.stopPropagation();  // evita propagación rara
+              e.preventDefault(); // evita submit del form
+              e.stopPropagation(); // evita propagación rara
               onNew();
             }}
-            className="w-10 h-10 rounded-lg bg-blue-600 text-white text-2xl font-bold shadow-sm flex items-center justify-center hover:bg-blue-700 active:scale-95 transition"
+            className="w-10 h-10 rounded-lg bg-sky-600 text-white text-xl font-semibold shadow-sm flex items-center justify-center hover:bg-sky-700 active:scale-95 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1"
             aria-label="Agregar nuevo"
           >
             +
@@ -73,7 +73,7 @@ export function SelectWithActions({
               e.stopPropagation();
               onEdit();
             }}
-            className="w-10 h-10 rounded-lg border border-slate-300 bg-white text-slate-600 shadow-sm flex items-center justify-center hover:bg-slate-50 active:scale-95 transition"
+            className="w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm flex items-center justify-center hover:bg-sky-50 hover:border-sky-200 active:scale-95 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1"
             aria-label="Editar opciones"
           >
             <PencilSquareIcon className="w-4 h-4" />

@@ -15,6 +15,7 @@ import {
   type Role,
 } from "@/lib/permissions";
 import { AdminPage as AdminUsersPanel } from "@/components/admin/AdminPage";
+import { useColumnWidths } from "@/hooks/useColumnWidths";
 
 /* --------- Helpers --------- */
 
@@ -31,6 +32,9 @@ function boolLabel(v: boolean | null | undefined) {
 }
 
 const ADMIN_EMAIL = "edwin.qm@outlook.com";
+
+// 🔹 Clave para guardar la vista actual
+const VIEW_KEY = "eka_cotizaciones_view_v1";
 
 type ProfileRow = {
   id: string;
@@ -51,141 +55,135 @@ export default function LogCotizacionesPage() {
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [view, setView] = useState<"log" | "admin" | "detalle_reqs">("log");
+
+  // 🔹 AHORA arranca en null para evitar parpadeo
+  const [view, setView] = useState<"log" | "admin" | "detalle_reqs" | null>(null);
 
   const [perfil, setPerfil] = useState<ProfileRow | null>(null);
 
-  // Anchos iniciales de columnas (ajusta a tu gusto)
-const LOG_COLUMNS_DEFAULT_WIDTHS = {
-  cotizacion: 150,
-  descripcion: 260,
-  cliente: 180,
-  unidad_minera: 200,
-  tipo_servicio: 180,
-  status_cotizacion: 200,
-  status_proyecto: 200,
-  oferta_usd: 140,
-  moneda: 110,
+  // ✅ Leer vista guardada en localStorage al montar
+  useEffect(() => {
+    if (typeof window === "undefined") return;
 
-};
+    const saved = window.localStorage.getItem(VIEW_KEY);
+    const initial: "log" | "admin" | "detalle_reqs" =
+      saved === "log" || saved === "admin" || saved === "detalle_reqs"
+        ? saved
+        : "log";
 
-const LOG_COLUMNS_WIDTHS_KEY = "eka_log_column_widths_v1";
+    setView(initial);
+  }, []);
 
-
-const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
-  if (typeof window === "undefined") return LOG_COLUMNS_DEFAULT_WIDTHS;
-
-  try {
-    const saved = window.localStorage.getItem(LOG_COLUMNS_WIDTHS_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return { ...LOG_COLUMNS_DEFAULT_WIDTHS, ...parsed };
+  // ✅ Helper para cambiar vista + guardar en localStorage
+  function changeView(v: "log" | "admin" | "detalle_reqs") {
+    setView(v);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(VIEW_KEY, v);
     }
-  } catch (e) {
-    console.warn("No se pudieron leer anchos guardados:", e);
   }
 
-  return LOG_COLUMNS_DEFAULT_WIDTHS;
-});
-
-
-useEffect(() => {
-  try {
-    window.localStorage.setItem(
-      LOG_COLUMNS_WIDTHS_KEY,
-      JSON.stringify(columnWidths)
-    );
-  } catch (e) {
-    console.warn("No se pudieron guardar anchos de columnas:", e);
-  }
-}, [columnWidths]);
-
-
-
-// Info temporal mientras se arrastra
-const resizeInfoRef = useRef<{
-  columnKey:
-    | "cotizacion"
-    | "descripcion"
-    | "cliente"
-    | "unidad_minera"
-    | "tipo_servicio"
-    | "status_cotizacion"
-    | "status_proyecto"
-    | "oferta_usd"
-    | "moneda"
-    | null;
-  startX: number;
-  startWidth: number;
-} | null>(null);
-
-function handleMouseMove(ev: MouseEvent) {
-  if (!resizeInfoRef.current) return;
-
-  const { columnKey, startX, startWidth } = resizeInfoRef.current;
-  if (!columnKey) return;
-
-  const delta = ev.clientX - startX;
-  const newWidth = Math.max(80, startWidth + delta); // mínimo 80px
-
-  setColumnWidths((prev) => ({
-    ...prev,
-    [columnKey]: newWidth,
-  }));
-}
-
-function handleMouseUp() {
-  resizeInfoRef.current = null;
-  window.removeEventListener("mousemove", handleMouseMove);
-  window.removeEventListener("mouseup", handleMouseUp);
-}
-
-function startResize(
-  key:
-    | "cotizacion"
-    | "descripcion"
-    | "cliente"
-    | "unidad_minera"
-    | "tipo_servicio"
-    | "status_cotizacion"
-    | "status_proyecto"
-    | "oferta_usd"
-    | "moneda",
-  e: React.MouseEvent<HTMLDivElement>
-) {
-  e.preventDefault();
-  e.stopPropagation();
-
-  const th = e.currentTarget.parentElement as HTMLTableCellElement | null;
-  if (!th) return;
-
-  const rect = th.getBoundingClientRect();
-
-  resizeInfoRef.current = {
-    columnKey: key,
-    startX: e.clientX,
-    startWidth: rect.width,
+  // ✅ Anchos por DEFECTO de columnas
+  const LOG_COLUMNS_DEFAULT_WIDTHS: Record<string, number> = {
+    cotizacion: 150,
+    descripcion: 260,
+    cliente: 180,
+    unidad_minera: 200,
+    tipo_servicio: 180,
+    status_cotizacion: 200,
+    status_proyecto: 200,
+    oferta_usd: 140,
+    moneda: 110,
   };
 
-  window.addEventListener("mousemove", handleMouseMove);
-  window.addEventListener("mouseup", handleMouseUp);
-}
+  // ✅ Hook que guarda anchos por usuario + tabla
+  const { widths, updateWidth } = useColumnWidths("log_cotizaciones");
 
-// Limpieza por si se desmonta el componente
-useEffect(() => {
-  return () => {
+  // 🧠 Ref para manejar el arrastre de la columna
+  const resizeInfoRef = useRef<{
+    columnKey:
+      | "cotizacion"
+      | "descripcion"
+      | "cliente"
+      | "unidad_minera"
+      | "tipo_servicio"
+      | "status_cotizacion"
+      | "status_proyecto"
+      | "oferta_usd"
+      | "moneda"
+      | null;
+    startX: number;
+    startWidth: number;
+  } | null>(null);
+
+  // Helper para obtener el ancho actual (persistido o default)
+  const getColumnWidth = (key: keyof typeof LOG_COLUMNS_DEFAULT_WIDTHS) => {
+    return widths[key] ?? LOG_COLUMNS_DEFAULT_WIDTHS[key];
+  };
+
+  function handleMouseMove(ev: MouseEvent) {
+    if (!resizeInfoRef.current) return;
+
+    const { columnKey, startX, startWidth } = resizeInfoRef.current;
+    if (!columnKey) return;
+
+    const delta = ev.clientX - startX;
+    const newWidth = Math.max(80, startWidth + delta); // mínimo 80px
+
+    // ✅ Actualiza el ancho en el hook (y se guarda en localStorage por usuario)
+    updateWidth(columnKey, newWidth);
+  }
+
+  function handleMouseUp() {
+    resizeInfoRef.current = null;
     window.removeEventListener("mousemove", handleMouseMove);
     window.removeEventListener("mouseup", handleMouseUp);
-  };
-}, []);
+  }
 
+  function startResize(
+    key:
+      | "cotizacion"
+      | "descripcion"
+      | "cliente"
+      | "unidad_minera"
+      | "tipo_servicio"
+      | "status_cotizacion"
+      | "status_proyecto"
+      | "oferta_usd"
+      | "moneda",
+    e: React.MouseEvent<HTMLDivElement>
+  ) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const th = e.currentTarget.parentElement as HTMLTableCellElement | null;
+    if (!th) return;
+
+    const rect = th.getBoundingClientRect();
+
+    resizeInfoRef.current = {
+      columnKey: key,
+      startX: e.clientX,
+      startWidth: rect.width,
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  }
+
+  // Limpieza por si se desmonta el componente
+  useEffect(() => {
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
 
   // -------- Detalle de Requerimientos ----------
   const [detalleRows, setDetalleRows] = useState<any[]>([]);
   const [detalleLoading, setDetalleLoading] = useState(false);
   const [detalleError, setDetalleError] = useState<string | null>(null);
-  // --- filtros y tamaños de página para LOG y DETALLE ---
 
+  // --- filtros y tamaños de página para LOG y DETALLE ---
   const [logPageSize, setLogPageSize] = useState(30);
   const [logSearch, setLogSearch] = useState("");
   const [logColumnFilters, setLogColumnFilters] =
@@ -284,7 +282,7 @@ useEffect(() => {
       const { data, error } = await supabase
         .from("Detalle de Requerimientos")
         .select("*")
-        .order("id", { ascending: false }); // 👈 más seguro
+        .order("id", { ascending: false });
 
       if (error) throw error;
 
@@ -297,7 +295,6 @@ useEffect(() => {
     }
   };
 
-
   // Modal Nueva / Editar
   const [isNuevaOpen, setIsNuevaOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<any | null>(null);
@@ -309,11 +306,13 @@ useEffect(() => {
     (perfil?.permissions ?? null) as PermissionOverrides | null
   );
 
-  const canSeeSection = (section: SectionKey) =>
-    perms.sections.includes(section);
+  // 🔑 Mientras el perfil NO está cargado, mostramos todas las secciones
+  const canSeeSection = (section: SectionKey) => {
+    if (!perfil) return true;
+    return perms.sections.includes(section);
+  };
 
-  const canSeeColumn = (col: LogColumnKey) =>
-    perms.logColumns.includes(col);
+  const canSeeColumn = (col: LogColumnKey) => perms.logColumns.includes(col);
 
   const canCreateQuote = perms.canCreateQuote;
   const canEditQuote = perms.canEditQuote;
@@ -505,12 +504,11 @@ useEffect(() => {
   }, [isNuevaOpen]);
 
   return (
-<main className="h-screen overflow-hidden bg-gradient-to-br from-sky-50 via-slate-50 to-emerald-50">
+    <main className="h-screen overflow-hidden bg-gradient-to-br from-sky-50 via-slate-50 to-emerald-50">
       <div className="w-full h-full flex gap-6 px-6 py-6 min-w-0">
         {/* ---------------- SIDEBAR ---------------- */}
         <aside
-          className={`
-            hidden md:flex shrink-0 flex-col
+          className={`hidden md:flex shrink-0 flex-col
             bg-gradient-to-b from-sky-50 via-slate-50 to-sky-50
             border border-slate-100 shadow-md rounded-3xl
             px-3 py-4
@@ -520,15 +518,13 @@ useEffect(() => {
         >
           {/* HEADER LOGO */}
           <div
-            className={`
-              flex items-center gap-3 px-2 pb-4 border-b border-slate-200
+            className={`flex items-center gap-3 px-2 pb-4 border-b border-slate-200
               ${sidebarCollapsed ? "justify-center" : ""}
             `}
           >
-          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-sky-500 text-sm font-bold text-white shadow-sm">
-            EKA
-          </div>
-
+            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-sky-500 text-sm font-bold text-white shadow-sm">
+              EKA
+            </div>
 
             {!sidebarCollapsed && (
               <div>
@@ -538,7 +534,6 @@ useEffect(() => {
                 <p className="text-[11px] text-slate-500">
                   Log de Cotizaciones &amp; Reqs.
                 </p>
-
               </div>
             )}
           </div>
@@ -547,8 +542,7 @@ useEffect(() => {
           <nav className="flex-1 mt-3 space-y-1 text-xs w-full">
             {canSeeSection("dashboard") && (
               <button
-                className={`
-                  w-full flex items-center gap-3 px-3 py-2 rounded-xl
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl
                   hover:bg-slate-100 text-slate-600 transition
                   ${sidebarCollapsed ? "justify-center" : ""}
                 `}
@@ -561,17 +555,17 @@ useEffect(() => {
 
             {canSeeSection("log") && (
               <button
-                className={`
-                  w-full flex items-center gap-3 px-3 py-2 rounded-xl
-                  ${view === "log"
- ? "bg-sky-600 text-white shadow-sm"
-  : "hover:bg-sky-100 text-slate-600"
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl
+                  ${
+                    view === "log"
+                      ? "bg-sky-600 text-white shadow-sm"
+                      : "hover:bg-sky-100 text-slate-600"
                   }
                   transition
                   ${sidebarCollapsed ? "justify-center" : ""}
                 `}
                 type="button"
-                onClick={() => setView("log")}
+                onClick={() => changeView("log")}
               >
                 <span className="text-lg">📄</span>
                 {!sidebarCollapsed && <span>Log de Cotizaciones</span>}
@@ -580,8 +574,7 @@ useEffect(() => {
 
             {canSeeSection("requerimientos") && (
               <button
-                className={`
-                  w-full flex items-center gap-3 px-3 py-2 rounded-xl
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl
                   hover:bg-slate-100 text-slate-600 transition
                   ${sidebarCollapsed ? "justify-center" : ""}
                 `}
@@ -594,17 +587,17 @@ useEffect(() => {
 
             {canSeeSection("detalle_reqs") && (
               <button
-                className={`
-                  w-full flex items-center gap-3 px-3 py-2 rounded-xl
-                  ${view === "detalle_reqs"
- ? "bg-sky-600 text-white shadow-sm"
-  : "hover:bg-sky-100 text-slate-600"
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl
+                  ${
+                    view === "detalle_reqs"
+                      ? "bg-sky-600 text-white shadow-sm"
+                      : "hover:bg-sky-100 text-slate-600"
                   }
                   transition
                   ${sidebarCollapsed ? "justify-center" : ""}
                 `}
                 type="button"
-                onClick={() => setView("detalle_reqs")}
+                onClick={() => changeView("detalle_reqs")}
               >
                 <span className="text-lg">📝</span>
                 {!sidebarCollapsed && <span>Detalle Reqs.</span>}
@@ -617,11 +610,9 @@ useEffect(() => {
             <button
               type="button"
               onClick={() => setSidebarCollapsed((prev) => !prev)}
-              className={`
-                w-full flex items-center ${sidebarCollapsed
-                  ? "justify-center"
-                  : "justify-center md:justify-center"
-                }
+              className={`w-full flex items-center ${
+                sidebarCollapsed ? "justify-center" : "justify-center"
+              }
                 gap-2 rounded-xl bg-sky-50 text-[11px] text-slate-600 py-2 hover:bg-sky-100 transition
               `}
             >
@@ -634,13 +625,13 @@ useEffect(() => {
             <button
               type="button"
               onClick={handleLogout}
-              className={`
-                w-full flex items-center gap-2
+              className={`w-full flex items-center gap-2
                 rounded-2xl bg-slate-900 text-[11px] text-slate-100 py-2 px-3
                 hover:bg-black transition shadow-sm
-                ${sidebarCollapsed
-                  ? "justify-center"
-                  : "justify-center md:justify-center"
+                ${
+                  sidebarCollapsed
+                    ? "justify-center"
+                    : "justify-center md:justify-center"
                 }
               `}
             >
@@ -651,14 +642,14 @@ useEffect(() => {
             {canSeeSection("admin") && (
               <button
                 type="button"
-                onClick={() => setView("admin")}
-                className={`
-w-full flex items-center gap-2
-  rounded-2xl bg-slate-800 text-[11px] text-slate-100 py-2 px-3
-  hover:bg-slate-900 transition shadow-sm
-  ...                  ${view === "admin"
-  ? "bg-gradient-to-r from-sky-400 to-emerald-400 text-white"
-  : "bg-gradient-to-r from-sky-50 to-emerald-50 text-slate-700"
+                onClick={() => changeView("admin")}
+                className={`w-full flex items-center gap-2
+                  rounded-2xl text-[11px] py-2 px-3
+                  hover:bg-slate-900 transition shadow-sm
+                  ${
+                    view === "admin"
+                      ? "bg-gradient-to-r from-sky-400 to-emerald-400 text-white"
+                      : "bg-gradient-to-r from-sky-50 to-emerald-50 text-slate-700"
                   }
                 `}
               >
@@ -682,613 +673,617 @@ w-full flex items-center gap-2
         <section className="flex-1 min-h-0 min-w-0">
           {view === "log" ? (
             <>
-              {/* CARD PRINCIPAL IGUAL A ADMIN */}
+              {/* CARD PRINCIPAL */}
               <div className="flex flex-col h-full w-full min-w-0 bg-white/90 border border-slate-200 rounded-3xl shadow-xl">
-
-                {/* HEADER igual que Administrador, ahora con pestañas */}
-                {/* HEADER con pestañas + controles alineados */}
-                  <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between gap-4">
-                    {/* Título + pestañas */}
-                    <div className="flex items-center gap-4">
-                      <div>
-                        <h1 className="text-sm font-semibold text-slate-800">
-                          Log de Cotizaciones
-                        </h1>
-                        <p className="text-xs text-slate-500">
-                          Registro centralizado de todas las cotizaciones del sistema.
-                        </p>
-
-                      </div>
-
-                      {/* Pestañas: Tabla / Seguimiento / KPIs / Resumen */}
-                      <div className="hidden md:flex items-center gap-2">
-                        {[
-                          { id: "tabla", label: "Tabla" },
-                          { id: "seguimiento", label: "Seguimiento" },
-                          { id: "kpis", label: "KPIs" },
-                          { id: "resumen", label: "Resumen" },
-                        ].map((tab) => {
-                          const isActive = logSubView === tab.id; // asegúrate de tener este estado: const [logSubView, setLogSubView] = useState<"tabla" | "seguimiento" | "kpis" | "resumen">("tabla");
-
-                          return (
-                            <button
-                              key={tab.id}
-                              type="button"
-                              onClick={() => setLogSubView(tab.id as any)}
-                              className={`
-                                h-9 inline-flex items-center px-4
-                                rounded-full text-[11px] border
-                                transition
-                                ${
-                                  isActive
-                                ? "bg-sky-600 border-sky-600 text-white shadow-sm"
-                                : "bg-white border-slate-200 text-slate-600 hover:bg-sky-50"
-                                }
-                              `}
-                            >
-                              {tab.label}
-                            </button>
-                          );
-                        })}
-                      </div>
+                {/* HEADER */}
+                <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between gap-4">
+                  {/* Título + pestañas */}
+                  <div className="flex items-center gap-4">
+                    <div>
+                      <h1 className="text-sm font-semibold text-slate-800">
+                        Log de Cotizaciones
+                      </h1>
+                      <p className="text-xs text-slate-500">
+                        Registro centralizado de todas las cotizaciones del sistema.
+                      </p>
                     </div>
 
-                    {/* Controles derecha: Mostrar / Buscar / Nueva Cotización */}
-                    <div className="flex items-center gap-3">
-                      {/* selector de filas */}
-                      <div className="hidden md:flex items-center text-[11px] text-slate-500">
-                        <span className="mr-1">Mostrar</span>
-                        <select
-                          value={logPageSize}
-                          onChange={(e) => setLogPageSize(Number(e.target.value))}
-                          className="
-                            h-9
-                            rounded-full border border-slate-200 bg-white
-                            px-3 pr-7
-                            text-[11px]
-                            focus:outline-none focus:ring-2 focus:ring-blue-500/60
-                          "
-                        >
-                          <option value={10}>10 filas</option>
-                          <option value={20}>20 filas</option>
-                          <option value={30}>30 filas</option>
-                          <option value={40}>40 filas</option>
-                          <option value={100}>100 filas</option>
-                        </select>
-                      </div>
+                    {/* Pestañas: Tabla / Seguimiento / KPIs / Resumen */}
+                    <div className="hidden md:flex items-center gap-2">
+                      {[
+                        { id: "tabla", label: "Tabla" },
+                        { id: "seguimiento", label: "Seguimiento" },
+                        { id: "kpis", label: "KPIs" },
+                        { id: "resumen", label: "Resumen" },
+                      ].map((tab) => {
+                        const isActive = logSubView === tab.id;
 
-                      {/* buscador */}
-                      <div className="relative">
-                        <input
-                          type="text"
-                          value={logSearch}
-                          onChange={(e) => setLogSearch(e.target.value)}
-                          placeholder="Buscar en la tabla…"
-                          className="
-                            h-9 w-40 md:w-56
-                            rounded-full border border-slate-200 bg-white
-                            pl-7 pr-3 text-[11px]
-                            focus:outline-none focus:ring-2 focus:ring-blue-500/60
-                          "
-                        />
-                        <span className="absolute left-2 top-[7px] text-xs text-slate-400">
-                          🔍
-                        </span>
-                      </div>
-
-                      {/* botón Nueva Cotización */}
-                      <button
-                        type="button"
-                        onClick={openNueva}
-                        className="
-                          h-9 inline-flex items-center
-                          px-4 rounded-full
-                          text-[11px] font-semibold
-                          bg-sky-600 text-white
-                          border border-sky-700
-                          hover:bg-sky-700
-                          transition
-                        "
-                      >
-                        Nueva Cotización
-                      </button>
+                        return (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => setLogSubView(tab.id as any)}
+                            className={`h-9 inline-flex items-center px-4
+                              rounded-full text-[11px] border transition
+                              ${
+                                isActive
+                                  ? "bg-sky-600 border-sky-600 text-white shadow-sm"
+                                  : "bg-white border-slate-200 text-slate-600 hover:bg-sky-50"
+                              }
+                            `}
+                          >
+                            {tab.label}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
+                  {/* Controles derecha */}
+                  <div className="flex items-center gap-3">
+                    {/* selector de filas */}
+                    <div className="hidden md:flex items-center text-[11px] text-slate-500">
+                      <span className="mr-1">Mostrar</span>
+                      <select
+                        value={logPageSize}
+                        onChange={(e) => setLogPageSize(Number(e.target.value))}
+                        className="h-9 rounded-full border border-slate-200 bg-white
+                          px-3 pr-7 text-[11px]
+                          focus:outline-none focus:ring-2 focus:ring-blue-500/60
+                        "
+                      >
+                        <option value={10}>10 filas</option>
+                        <option value={20}>20 filas</option>
+                        <option value={30}>30 filas</option>
+                        <option value={40}>40 filas</option>
+                        <option value={100}>100 filas</option>
+                      </select>
+                    </div>
 
+                    {/* buscador */}
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={logSearch}
+                        onChange={(e) => setLogSearch(e.target.value)}
+                        placeholder="Buscar en la tabla…"
+                        className="h-9 w-40 md:w-56
+                          rounded-full border border-slate-200 bg-white
+                          pl-7 pr-3 text-[11px]
+                          focus:outline-none focus:ring-2 focus:ring-blue-500/60
+                        "
+                      />
+                      <span className="absolute left-2 top-[7px] text-xs text-slate-400">
+                        🔍
+                      </span>
+                    </div>
 
-
-                {/* CONTENIDO (scroll interno, header fijo) */}
-                {/* CONTENIDO (scroll interno, header fijo) */}
-<div className="flex-1 min-h-0 p-4">
-  {/* ==================== TABLA ==================== */}
-  {logSubView === "tabla" && (
-    <>
-      {errorMsg && (
-        <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
-          {errorMsg}
-        </div>
-      )}
-
-      {!loading && !errorMsg && rows.length === 0 && (
-        <p className="text-sm text-slate-500">
-          No hay cotizaciones registradas todavía.
-        </p>
-      )}
-
-      {/* Contenedor que maneja TODO el scroll de la tabla */}
-      {rows.length > 0 && (
-        <div className="h-full max-w-full border border-slate-200 rounded-2xl bg-white overflow-auto">
-          <table className="min-w-max text-xs text-slate-700">
-<thead className="sticky top-0 z-10 bg-sky-50/70 text-xs uppercase tracking-wide border-b border-slate-100 text-slate-600">
-  {/* encabezados */}
-  <tr>
-    <th
-      className="px-3 py-2 text-left font-semibold relative group"
-      style={{ width: columnWidths.cotizacion }}
-    >
-      <span>Cotización</span>
-      <div
-        onMouseDown={(e) => startResize("cotizacion", e)}
-        className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-slate-300/60 opacity-0 group-hover:opacity-100"
-      />
-    </th>
-
-    <th
-      className="px-3 py-2 text-left font-semibold relative group"
-      style={{ width: columnWidths.descripcion }}
-    >
-      <span>Descripción</span>
-      <div
-        onMouseDown={(e) => startResize("descripcion", e)}
-        className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-slate-300/60 opacity-0 group-hover:opacity-100"
-      />
-    </th>
-
-    <th
-      className="px-3 py-2 text-left font-semibold relative group"
-      style={{ width: columnWidths.cliente }}
-    >
-      <span>Cliente</span>
-      <div
-        onMouseDown={(e) => startResize("cliente", e)}
-        className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-slate-300/60 opacity-0 group-hover:opacity-100"
-      />
-    </th>
-
-    <th
-      className="px-3 py-2 text-left font-semibold relative group"
-      style={{ width: columnWidths.unidad_minera }}
-    >
-      <span>Unidad minera</span>
-      <div
-        onMouseDown={(e) => startResize("unidad_minera", e)}
-        className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-slate-300/60 opacity-0 group-hover:opacity-100"
-      />
-    </th>
-
-    <th
-      className="px-3 py-2 text-left font-semibold relative group"
-      style={{ width: columnWidths.tipo_servicio }}
-    >
-      <span>Tipo servicio</span>
-      <div
-        onMouseDown={(e) => startResize("tipo_servicio", e)}
-        className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-slate-300/60 opacity-0 group-hover:opacity-100"
-      />
-    </th>
-
-    <th
-      className="px-3 py-2 text-left font-semibold relative group"
-      style={{ width: columnWidths.status_cotizacion }}
-    >
-      <span>Status cotización</span>
-      <div
-        onMouseDown={(e) => startResize("status_cotizacion", e)}
-        className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-slate-300/60 opacity-0 group-hover:opacity-100"
-      />
-    </th>
-
-    <th
-      className="px-3 py-2 text-left font-semibold relative group"
-      style={{ width: columnWidths.status_proyecto }}
-    >
-      <span>Status proyecto</span>
-      <div
-        onMouseDown={(e) => startResize("status_proyecto", e)}
-        className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-slate-300/60 opacity-0 group-hover:opacity-100"
-      />
-    </th>
-
-    <th
-      className="px-3 py-2 text-left font-semibold relative group"
-      style={{ width: columnWidths.oferta_usd }}
-    >
-      <span>Oferta (USD)</span>
-      <div
-        onMouseDown={(e) => startResize("oferta_usd", e)}
-        className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-slate-300/60 opacity-0 group-hover:opacity-100"
-      />
-    </th>
-
-    <th
-      className="px-3 py-2 text-left font-semibold relative group"
-      style={{ width: columnWidths.moneda }}
-    >
-      <span>Moneda</span>
-      <div
-        onMouseDown={(e) => startResize("moneda", e)}
-        className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-slate-300/60 opacity-0 group-hover:opacity-100"
-      />
-    </th>
-
-    
-  </tr>
-
-
-              {/* fila de filtros por columna */}
-<tr className="bg-sky-50/50 text-[10px] normal-case">
-                <th className="px-3 py-1">
-                  <input
-className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:border-sky-400 focus:ring-1 focus:ring-sky-300 outline-none"
-                    placeholder="Filtrar"
-                    value={logColumnFilters.cotizacion ?? ""}
-                    onChange={(e) =>
-                      setLogColumnFilters((prev) => ({
-                        ...prev,
-                        cotizacion: e.target.value,
-                      }))
-                    }
-                  />
-                </th>
-                <th className="px-3 py-1">
-                  <input
-className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:border-sky-400 focus:ring-1 focus:ring-sky-300 outline-none"
-                    placeholder="Filtrar"
-                    value={logColumnFilters.descripcion ?? ""}
-                    onChange={(e) =>
-                      setLogColumnFilters((prev) => ({
-                        ...prev,
-                        descripcion: e.target.value,
-                      }))
-                    }
-                  />
-                </th>
-                <th className="px-3 py-1">
-                  <input
-className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:border-sky-400 focus:ring-1 focus:ring-sky-300 outline-none"
-                    placeholder="Filtrar"
-                    value={logColumnFilters.cliente ?? ""}
-                    onChange={(e) =>
-                      setLogColumnFilters((prev) => ({
-                        ...prev,
-                        cliente: e.target.value,
-                      }))
-                    }
-                  />
-                </th>
-                <th className="px-3 py-1">
-                  <input
-className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:border-sky-400 focus:ring-1 focus:ring-sky-300 outline-none"
-                    placeholder="Filtrar"
-                    value={logColumnFilters.unidad_minera ?? ""}
-                    onChange={(e) =>
-                      setLogColumnFilters((prev) => ({
-                        ...prev,
-                        unidad_minera: e.target.value,
-                      }))
-                    }
-                  />
-                </th>
-                <th className="px-3 py-1">
-                  <input
-className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:border-sky-400 focus:ring-1 focus:ring-sky-300 outline-none"
-                    placeholder="Filtrar"
-                    value={logColumnFilters.tipo_servicio ?? ""}
-                    onChange={(e) =>
-                      setLogColumnFilters((prev) => ({
-                        ...prev,
-                        tipo_servicio: e.target.value,
-                      }))
-                    }
-                  />
-                </th>
-                <th className="px-3 py-1">
-                  <input
-className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:border-sky-400 focus:ring-1 focus:ring-sky-300 outline-none"
-                    placeholder="Filtrar"
-                    value={logColumnFilters.status_cotizacion ?? ""}
-                    onChange={(e) =>
-                      setLogColumnFilters((prev) => ({
-                        ...prev,
-                        status_cotizacion: e.target.value,
-                      }))
-                    }
-                  />
-                </th>
-                <th className="px-3 py-1">
-                  <input
-className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:border-sky-400 focus:ring-1 focus:ring-sky-300 outline-none"
-                    placeholder="Filtrar"
-                    value={logColumnFilters.status_proyecto ?? ""}
-                    onChange={(e) =>
-                      setLogColumnFilters((prev) => ({
-                        ...prev,
-                        status_proyecto: e.target.value,
-                      }))
-                    }
-                  />
-                </th>
-                <th className="px-3 py-1">
-                  <input
-className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:border-sky-400 focus:ring-1 focus:ring-sky-300 outline-none"
-                    placeholder="Filtrar"
-                    value={logColumnFilters.oferta_usd ?? ""}
-                    onChange={(e) =>
-                      setLogColumnFilters((prev) => ({
-                        ...prev,
-                        oferta_usd: e.target.value,
-                      }))
-                    }
-                  />
-                </th>
-                <th className="px-3 py-1">
-                  <input
-className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:border-sky-400 focus:ring-1 focus:ring-sky-300 outline-none"
-                    placeholder="Filtrar"
-                    value={logColumnFilters.moneda ?? ""}
-                    onChange={(e) =>
-                      setLogColumnFilters((prev) => ({
-                        ...prev,
-                        moneda: e.target.value,
-                      }))
-                    }
-                  />
-                </th>
-                <th />
-              </tr>
-            </thead>
-
-            <tbody>
-              {visibleLogRows.map((r, idx) => {
-                const statusCot =
-                  r.estado_cotizacion || r.status_cotizacion || "—";
-                const ofertaUsd =
-                  r.oferta_usd ?? r.moneda_normalizada_usd ?? null;
-                const isExpanded = expandedRowId === r.id;
-
-                return (
-                  <React.Fragment key={r.id}>
-                    <tr
-                      className={
-                        idx % 2 === 0
-                          ? "bg-white"
-                          : "bg-slate-50/60 border-t border-slate-100"
-                      }
+                    {/* botón Nueva Cotización */}
+                    <button
+                      type="button"
+                      onClick={openNueva}
+                      className="h-9 inline-flex items-center px-4 rounded-full
+                        text-[11px] font-semibold bg-sky-600 text-white
+                        border border-sky-700 hover:bg-sky-700 transition
+                      "
                     >
-                      <td className="px-3 py-2">
-                        <div className="flex items-center justify-between gap-2">
-                          {/* Texto de la cotización */}
-                          <span className="font-mono text-[11px] truncate">
-                            {r.cotizacion}
-                          </span>
+                      Nueva Cotización
+                    </button>
+                  </div>
+                </div>
 
-                          {/* Íconos de acciones */}
-                          <div className="flex items-center gap-1 text-slate-400">
-                            <button
-                              type="button"
-                              onClick={() => toggleExpand(r.id)}
-                              className="inline-flex h-7 w-7 items-center justify-center rounded-full hover:bg-slate-100 hover:text-slate-700"
-                              title={isExpanded ? "Ocultar detalle" : "Ver detalle"}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => openEditar(r)}
-                              className="inline-flex h-7 w-7 items-center justify-center rounded-full hover:bg-blue-50 hover:text-blue-600"
-                              title="Editar cotización"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </button>
-                          </div>
+                {/* CONTENIDO */}
+                <div className="flex-1 min-h-0 p-4">
+                  {/* ==================== TABLA ==================== */}
+                  {logSubView === "tabla" && (
+                    <>
+                      {errorMsg && (
+                        <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
+                          {errorMsg}
                         </div>
-                      </td>
+                      )}
 
-                      <td className="px-3 py-2 max-w-xs">
-                        <span className="text-[11px] text-slate-700 line-clamp-2">
-                          {r.descripcion || (
-                            <span className="text-slate-400">—</span>
-                          )}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2">
-                        {r.cliente || <span className="text-slate-400">—</span>}
-                      </td>
-                      <td className="px-3 py-2">
-                        {r.unidad_minera || (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2">
-                        {r.tipo_servicio || (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2">{statusCot}</td>
-                      <td className="px-3 py-2">
-                        {r.status_proyecto || (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2">
-                        {ofertaUsd !== null
-                          ? ofertaUsd.toLocaleString("es-PE", {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            })
-                          : "—"}
-                      </td>
-                      <td className="px-3 py-2">
-                        {r.moneda || <span className="text-slate-400">—</span>}
-                      </td>
-          
-                    </tr>
+                      {!loading && !errorMsg && rows.length === 0 && (
+                        <p className="text-sm text-slate-500">
+                          No hay cotizaciones registradas todavía.
+                        </p>
+                      )}
 
-                    {isExpanded && (
-                      <tr>
-                        <td
-                          colSpan={9}
-                          className="bg-slate-50 border-t border-slate-200 px-4 py-4"
-                        >
-                          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[11px] text-slate-700">
-                            <div className="mb-2 flex items-center justify-between gap-3">
-                              <div>
-                                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">
-                                  Detalle de la cotización
-                                </p>
-                                <p className="font-mono text-[11px] text-slate-800">
-                                  {r.cotizacion ?? "—"}
-                                </p>
-                              </div>
-                            </div>
+                      {rows.length > 0 && (
+                        <div className="h-full max-w-full border border-slate-200 rounded-2xl bg-white overflow-auto">
+                          <table className="min-w-max text-xs text-slate-700">
+                            <thead className="sticky top-0 z-10 bg-sky-50/70 text-xs uppercase tracking-wide border-b border-slate-100 text-slate-600">
+                              <tr>
+                                <th
+                                  className="px-3 py-2 text-left font-semibold relative group"
+                                  style={{ width: getColumnWidth("cotizacion") }}
+                                >
+                                  <span>Cotización</span>
+                                  <div
+                                    onMouseDown={(e) => startResize("cotizacion", e)}
+                                    className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-slate-300/60 opacity-0 group-hover:opacity-100"
+                                  />
+                                </th>
 
-                            <div className="grid gap-3 md:grid-cols-3">
-                              <div>
-                                <p className="text-[10px] font-semibold text-slate-500 uppercase">
-                                  Cliente
-                                </p>
-                                <p>{r.cliente || "—"}</p>
-                              </div>
+                                <th
+                                  className="px-3 py-2 text-left font-semibold relative group"
+                                  style={{ width: getColumnWidth("descripcion") }}
+                                >
+                                  <span>Descripción</span>
+                                  <div
+                                    onMouseDown={(e) => startResize("descripcion", e)}
+                                    className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-slate-300/60 opacity-0 group-hover:opacity-100"
+                                  />
+                                </th>
 
-                              <div>
-                                <p className="text-[10px] font-semibold text-slate-500 uppercase">
-                                  Unidad minera
-                                </p>
-                                <p>{r.unidad_minera || "—"}</p>
-                              </div>
+                                <th
+                                  className="px-3 py-2 text-left font-semibold relative group"
+                                  style={{ width: getColumnWidth("cliente") }}
+                                >
+                                  <span>Cliente</span>
+                                  <div
+                                    onMouseDown={(e) => startResize("cliente", e)}
+                                    className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-slate-300/60 opacity-0 group-hover:opacity-100"
+                                  />
+                                </th>
 
-                              <div>
-                                <p className="text-[10px] font-semibold text-slate-500 uppercase">
-                                  Tipo de servicio
-                                </p>
-                                <p>{r.tipo_servicio || "—"}</p>
-                              </div>
+                                <th
+                                  className="px-3 py-2 text-left font-semibold relative group"
+                                  style={{ width: getColumnWidth("unidad_minera") }}
+                                >
+                                  <span>Unidad minera</span>
+                                  <div
+                                    onMouseDown={(e) =>
+                                      startResize("unidad_minera", e)
+                                    }
+                                    className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-slate-300/60 opacity-0 group-hover:opacity-100"
+                                  />
+                                </th>
 
-                              <div>
-                                <p className="text-[10px] font-semibold text-slate-500 uppercase">
-                                  Status cotización
-                                </p>
-                                <p>
-                                  {r.estado_cotizacion ||
-                                    r.status_cotizacion ||
-                                    "—"}
-                                </p>
-                              </div>
+                                <th
+                                  className="px-3 py-2 text-left font-semibold relative group"
+                                  style={{ width: getColumnWidth("tipo_servicio") }}
+                                >
+                                  <span>Tipo servicio</span>
+                                  <div
+                                    onMouseDown={(e) =>
+                                      startResize("tipo_servicio", e)
+                                    }
+                                    className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-slate-300/60 opacity-0 group-hover:opacity-100"
+                                  />
+                                </th>
 
-                              <div>
-                                <p className="text-[10px] font-semibold text-slate-500 uppercase">
-                                  Status proyecto
-                                </p>
-                                <p>{r.status_proyecto || "—"}</p>
-                              </div>
+                                <th
+                                  className="px-3 py-2 text-left font-semibold relative group"
+                                  style={{
+                                    width: getColumnWidth("status_cotizacion"),
+                                  }}
+                                >
+                                  <span>Status cotización</span>
+                                  <div
+                                    onMouseDown={(e) =>
+                                      startResize("status_cotizacion", e)
+                                    }
+                                    className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-slate-300/60 opacity-0 group-hover:opacity-100"
+                                  />
+                                </th>
 
-                              <div>
-                                <p className="text-[10px] font-semibold text-slate-500 uppercase">
-                                  Oferta (USD)
-                                </p>
-                                <p>
-                                  {ofertaUsd !== null
-                                    ? ofertaUsd.toLocaleString("es-PE", {
-                                        minimumFractionDigits: 2,
-                                        maximumFractionDigits: 2,
-                                      })
-                                    : "—"}
-                                </p>
-                              </div>
+                                <th
+                                  className="px-3 py-2 text-left font-semibold relative group"
+                                  style={{
+                                    width: getColumnWidth("status_proyecto"),
+                                  }}
+                                >
+                                  <span>Status proyecto</span>
+                                  <div
+                                    onMouseDown={(e) =>
+                                      startResize("status_proyecto", e)
+                                    }
+                                    className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-slate-300/60 opacity-0 group-hover:opacity-100"
+                                  />
+                                </th>
 
-                              <div>
-                                <p className="text-[10px] font-semibold text-slate-500 uppercase">
-                                  Moneda
-                                </p>
-                                <p>{r.moneda || "—"}</p>
-                              </div>
+                                <th
+                                  className="px-3 py-2 text-left font-semibold relative group"
+                                  style={{ width: getColumnWidth("oferta_usd") }}
+                                >
+                                  <span>Oferta (USD)</span>
+                                  <div
+                                    onMouseDown={(e) =>
+                                      startResize("oferta_usd", e)
+                                    }
+                                    className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-slate-300/60 opacity-0 group-hover:opacity-100"
+                                  />
+                                </th>
 
-                              <div>
-                                <p className="text-[10px] font-semibold text-slate-500 uppercase">
-                                  Fecha registro
-                                </p>
-                                <p>{formatDate(r.fecha_registro)}</p>
-                              </div>
+                                <th
+                                  className="px-3 py-2 text-left font-semibold relative group"
+                                  style={{ width: getColumnWidth("moneda") }}
+                                >
+                                  <span>Moneda</span>
+                                  <div
+                                    onMouseDown={(e) => startResize("moneda", e)}
+                                    className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-slate-300/60 opacity-0 group-hover:opacity-100"
+                                  />
+                                </th>
+                              </tr>
 
-                              <div className="md:col-span-3">
-                                <p className="text-[10px] font-semibold text-slate-500 uppercase">
-                                  Descripción
-                                </p>
-                                <p className="whitespace-pre-wrap">
-                                  {r.descripcion || "—"}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+                              {/* fila filtros */}
+                              <tr className="bg-sky-50/50 text-[10px] normal-case">
+                                <th className="px-3 py-1">
+                                  <input
+                                    className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:border-sky-400 focus:ring-1 focus:ring-sky-300 outline-none"
+                                    placeholder="Filtrar"
+                                    value={logColumnFilters.cotizacion ?? ""}
+                                    onChange={(e) =>
+                                      setLogColumnFilters((prev) => ({
+                                        ...prev,
+                                        cotizacion: e.target.value,
+                                      }))
+                                    }
+                                  />
+                                </th>
+                                <th className="px-3 py-1">
+                                  <input
+                                    className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:border-sky-400 focus:ring-1 focus:ring-sky-300 outline-none"
+                                    placeholder="Filtrar"
+                                    value={logColumnFilters.descripcion ?? ""}
+                                    onChange={(e) =>
+                                      setLogColumnFilters((prev) => ({
+                                        ...prev,
+                                        descripcion: e.target.value,
+                                      }))
+                                    }
+                                  />
+                                </th>
+                                <th className="px-3 py-1">
+                                  <input
+                                    className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:border-sky-400 focus:ring-1 focus:ring-sky-300 outline-none"
+                                    placeholder="Filtrar"
+                                    value={logColumnFilters.cliente ?? ""}
+                                    onChange={(e) =>
+                                      setLogColumnFilters((prev) => ({
+                                        ...prev,
+                                        cliente: e.target.value,
+                                      }))
+                                    }
+                                  />
+                                </th>
+                                <th className="px-3 py-1">
+                                  <input
+                                    className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:border-sky-400 focus:ring-1 focus:ring-sky-300 outline-none"
+                                    placeholder="Filtrar"
+                                    value={logColumnFilters.unidad_minera ?? ""}
+                                    onChange={(e) =>
+                                      setLogColumnFilters((prev) => ({
+                                        ...prev,
+                                        unidad_minera: e.target.value,
+                                      }))
+                                    }
+                                  />
+                                </th>
+                                <th className="px-3 py-1">
+                                  <input
+                                    className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:border-sky-400 focus:ring-1 focus:ring-sky-300 outline-none"
+                                    placeholder="Filtrar"
+                                    value={logColumnFilters.tipo_servicio ?? ""}
+                                    onChange={(e) =>
+                                      setLogColumnFilters((prev) => ({
+                                        ...prev,
+                                        tipo_servicio: e.target.value,
+                                      }))
+                                    }
+                                  />
+                                </th>
+                                <th className="px-3 py-1">
+                                  <input
+                                    className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:border-sky-400 focus:ring-1 focus:ring-sky-300 outline-none"
+                                    placeholder="Filtrar"
+                                    value={logColumnFilters.status_cotizacion ?? ""}
+                                    onChange={(e) =>
+                                      setLogColumnFilters((prev) => ({
+                                        ...prev,
+                                        status_cotizacion: e.target.value,
+                                      }))
+                                    }
+                                  />
+                                </th>
+                                <th className="px-3 py-1">
+                                  <input
+                                    className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:border-sky-400 focus:ring-1 focus:ring-sky-300 outline-none"
+                                    placeholder="Filtrar"
+                                    value={logColumnFilters.status_proyecto ?? ""}
+                                    onChange={(e) =>
+                                      setLogColumnFilters((prev) => ({
+                                        ...prev,
+                                        status_proyecto: e.target.value,
+                                      }))
+                                    }
+                                  />
+                                </th>
+                                <th className="px-3 py-1">
+                                  <input
+                                    className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:border-sky-400 focus:ring-1 focus:ring-sky-300 outline-none"
+                                    placeholder="Filtrar"
+                                    value={logColumnFilters.oferta_usd ?? ""}
+                                    onChange={(e) =>
+                                      setLogColumnFilters((prev) => ({
+                                        ...prev,
+                                        oferta_usd: e.target.value,
+                                      }))
+                                    }
+                                  />
+                                </th>
+                                <th className="px-3 py-1">
+                                  <input
+                                    className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:border-sky-400 focus:ring-1 focus:ring-sky-300 outline-none"
+                                    placeholder="Filtrar"
+                                    value={logColumnFilters.moneda ?? ""}
+                                    onChange={(e) =>
+                                      setLogColumnFilters((prev) => ({
+                                        ...prev,
+                                        moneda: e.target.value,
+                                      }))
+                                    }
+                                  />
+                                </th>
+                                <th />
+                              </tr>
+                            </thead>
 
-      {loading && (
-        <p className="text-sm text-slate-500">Cargando registros…</p>
-      )}
-    </>
-  )}
+                            <tbody>
+                              {visibleLogRows.map((r, idx) => {
+                                const statusCot =
+                                  r.estado_cotizacion ||
+                                  r.status_cotizacion ||
+                                  "—";
+                                const ofertaUsd =
+                                  r.oferta_usd ?? r.moneda_normalizada_usd ?? null;
+                                const isExpanded = expandedRowId === r.id;
 
-  {/* ==================== SEGUIMIENTO ==================== */}
-  {logSubView  === "seguimiento" && (
-    <div className="h-full max-w-full border border-slate-200 rounded-2xl bg-white overflow-auto p-4 text-[12px] text-slate-700">
-      <h2 className="text-sm font-semibold text-slate-800 mb-2">
-        Seguimiento de cotizaciones
-      </h2>
-      <p>
-        Aquí podrás construir la vista de seguimiento (etapas, responsables,
-        fechas clave, etc.) manteniendo el mismo estilo de tarjeta.
-      </p>
-    </div>
-  )}
+                                return (
+                                  <React.Fragment key={r.id}>
+                                    <tr
+                                      className={
+                                        idx % 2 === 0
+                                          ? "bg-white"
+                                          : "bg-slate-50/60 border-t border-slate-100"
+                                      }
+                                    >
+                                      <td className="px-3 py-2">
+                                        <div className="flex items-center justify-between gap-2">
+                                          <span className="font-mono text-[11px] truncate">
+                                            {r.cotizacion}
+                                          </span>
 
-  {/* ==================== KPIs ==================== */}
-  {logSubView  === "kpis" && (
-    <div className="h-full max-w-full border border-slate-200 rounded-2xl bg-white overflow-auto p-4 text-[12px] text-slate-700">
-      <h2 className="text-sm font-semibold text-slate-800 mb-2">
-        KPIs de cotizaciones
-      </h2>
-      <p>
-        Aquí irán tus indicadores (ganadas, perdidas, montos, porcentajes, etc.)
-        usando el mismo contenedor estandarizado.
-      </p>
-    </div>
-  )}
+                                          <div className="flex items-center gap-1 text-slate-400">
+                                            <button
+                                              type="button"
+                                              onClick={() => toggleExpand(r.id)}
+                                              className="inline-flex h-7 w-7 items-center justify-center rounded-full hover:bg-slate-100 hover:text-slate-700"
+                                              title={
+                                                isExpanded
+                                                  ? "Ocultar detalle"
+                                                  : "Ver detalle"
+                                              }
+                                            >
+                                              <Eye className="h-4 w-4" />
+                                            </button>
 
-  {/* ==================== RESUMEN ==================== */}
-  {logSubView  === "resumen" && (
-    <div className="h-full max-w-full border border-slate-200 rounded-2xl bg-white overflow-auto p-4 text-[12px] text-slate-700">
-      <h2 className="text-sm font-semibold text-slate-800 mb-2">
-        Resumen general
-      </h2>
-      <p>
-        Vista pensada como resumen ejecutivo del log de cotizaciones: últimos
-        movimientos, alertas importantes y cualquier cuadro resumen que quieras.
-      </p>
-    </div>
-  )}
-</div>
+                                            <button
+                                              type="button"
+                                              onClick={() => openEditar(r)}
+                                              className="inline-flex h-7 w-7 items-center justify-center rounded-full hover:bg-blue-50 hover:text-blue-600"
+                                              title="Editar cotización"
+                                            >
+                                              <Pencil className="h-4 w-4" />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </td>
 
+                                      <td className="px-3 py-2 max-w-xs">
+                                        <span className="text-[11px] text-slate-700 line-clamp-2">
+                                          {r.descripcion || (
+                                            <span className="text-slate-400">—</span>
+                                          )}
+                                        </span>
+                                      </td>
+                                      <td className="px-3 py-2">
+                                        {r.cliente || (
+                                          <span className="text-slate-400">—</span>
+                                        )}
+                                      </td>
+                                      <td className="px-3 py-2">
+                                        {r.unidad_minera || (
+                                          <span className="text-slate-400">—</span>
+                                        )}
+                                      </td>
+                                      <td className="px-3 py-2">
+                                        {r.tipo_servicio || (
+                                          <span className="text-slate-400">—</span>
+                                        )}
+                                      </td>
+                                      <td className="px-3 py-2">{statusCot}</td>
+                                      <td className="px-3 py-2">
+                                        {r.status_proyecto || (
+                                          <span className="text-slate-400">—</span>
+                                        )}
+                                      </td>
+                                      <td className="px-3 py-2">
+                                        {ofertaUsd !== null
+                                          ? ofertaUsd.toLocaleString("es-PE", {
+                                              minimumFractionDigits: 2,
+                                              maximumFractionDigits: 2,
+                                            })
+                                          : "—"}
+                                      </td>
+                                      <td className="px-3 py-2">
+                                        {r.moneda || (
+                                          <span className="text-slate-400">—</span>
+                                        )}
+                                      </td>
+                                    </tr>
+
+                                    {isExpanded && (
+                                      <tr>
+                                        <td
+                                          colSpan={9}
+                                          className="bg-slate-50 border-t border-slate-200 px-4 py-4"
+                                        >
+                                          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[11px] text-slate-700">
+                                            <div className="mb-2 flex items-center justify-between gap-3">
+                                              <div>
+                                                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">
+                                                  Detalle de la cotización
+                                                </p>
+                                                <p className="font-mono text-[11px] text-slate-800">
+                                                  {r.cotizacion ?? "—"}
+                                                </p>
+                                              </div>
+                                            </div>
+
+                                            <div className="grid gap-3 md:grid-cols-3">
+                                              <div>
+                                                <p className="text-[10px] font-semibold text-slate-500 uppercase">
+                                                  Cliente
+                                                </p>
+                                                <p>{r.cliente || "—"}</p>
+                                              </div>
+
+                                              <div>
+                                                <p className="text-[10px] font-semibold text-slate-500 uppercase">
+                                                  Unidad minera
+                                                </p>
+                                                <p>{r.unidad_minera || "—"}</p>
+                                              </div>
+
+                                              <div>
+                                                <p className="text-[10px] font-semibold text-slate-500 uppercase">
+                                                  Tipo de servicio
+                                                </p>
+                                                <p>{r.tipo_servicio || "—"}</p>
+                                              </div>
+
+                                              <div>
+                                                <p className="text-[10px] font-semibold text-slate-500 uppercase">
+                                                  Status cotización
+                                                </p>
+                                                <p>
+                                                  {r.estado_cotizacion ||
+                                                    r.status_cotizacion ||
+                                                    "—"}
+                                                </p>
+                                              </div>
+
+                                              <div>
+                                                <p className="text-[10px] font-semibold text-slate-500 uppercase">
+                                                  Status proyecto
+                                                </p>
+                                                <p>{r.status_proyecto || "—"}</p>
+                                              </div>
+
+                                              <div>
+                                                <p className="text-[10px] font-semibold text-slate-500 uppercase">
+                                                  Oferta (USD)
+                                                </p>
+                                                <p>
+                                                  {ofertaUsd !== null
+                                                    ? ofertaUsd.toLocaleString(
+                                                        "es-PE",
+                                                        {
+                                                          minimumFractionDigits: 2,
+                                                          maximumFractionDigits: 2,
+                                                        }
+                                                      )
+                                                    : "—"}
+                                                </p>
+                                              </div>
+
+                                              <div>
+                                                <p className="text-[10px] font-semibold text-slate-500 uppercase">
+                                                  Moneda
+                                                </p>
+                                                <p>{r.moneda || "—"}</p>
+                                              </div>
+
+                                              <div>
+                                                <p className="text-[10px] font-semibold text-slate-500 uppercase">
+                                                  Fecha registro
+                                                </p>
+                                                <p>{formatDate(r.fecha_registro)}</p>
+                                              </div>
+
+                                              <div className="md:col-span-3">
+                                                <p className="text-[10px] font-semibold text-slate-500 uppercase">
+                                                  Descripción
+                                                </p>
+                                                <p className="whitespace-pre-wrap">
+                                                  {r.descripcion || "—"}
+                                                </p>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </React.Fragment>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+
+                      {loading && (
+                        <p className="text-sm text-slate-500">
+                          Cargando registros…
+                        </p>
+                      )}
+                    </>
+                  )}
+
+                  {/* ==================== SEGUIMIENTO ==================== */}
+                  {logSubView === "seguimiento" && (
+                    <div className="h-full max-w-full border border-slate-200 rounded-2xl bg-white overflow-auto p-4 text-[12px] text-slate-700">
+                      <h2 className="text-sm font-semibold text-slate-800 mb-2">
+                        Seguimiento de cotizaciones
+                      </h2>
+                      <p>
+                        Aquí podrás construir la vista de seguimiento (etapas,
+                        responsables, fechas clave, etc.) manteniendo el mismo estilo
+                        de tarjeta.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* ==================== KPIs ==================== */}
+                  {logSubView === "kpis" && (
+                    <div className="h-full max-w-full border border-slate-200 rounded-2xl bg-white overflow-auto p-4 text-[12px] text-slate-700">
+                      <h2 className="text-sm font-semibold text-slate-800 mb-2">
+                        KPIs de cotizaciones
+                      </h2>
+                      <p>
+                        Aquí irán tus indicadores (ganadas, perdidas, montos,
+                        porcentajes, etc.) usando el mismo contenedor estandarizado.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* ==================== RESUMEN ==================== */}
+                  {logSubView === "resumen" && (
+                    <div className="h-full max-w-full border border-slate-200 rounded-2xl bg-white overflow-auto p-4 text-[12px] text-slate-700">
+                      <h2 className="text-sm font-semibold text-slate-800 mb-2">
+                        Resumen general
+                      </h2>
+                      <p>
+                        Vista pensada como resumen ejecutivo del log de cotizaciones:
+                        últimos movimientos, alertas importantes y cualquier cuadro
+                        resumen que quieras.
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* MODAL NUEVA / EDITAR COTIZACIÓN */}
@@ -1301,83 +1296,76 @@ className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:border-sky-
                 />
               )}
             </>
-
-          ) : view === "detalle_reqs" ? (
+                    ) : view === "detalle_reqs" ? (
             <>
               {/* ---- DETALLE DE REQUERIMIENTOS ---- */}
               <div className="flex flex-col h-full w-full min-w-0 bg-white/90 border border-slate-200 rounded-3xl shadow-xl">
-                {/* Header igual estilo que Admin y Log */}
+                {/* Header */}
                 <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between gap-4">
                   <div>
                     <h1 className="text-sm font-semibold text-slate-800">
                       Detalle de Requerimientos
                     </h1>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-[11px] text-slate-500">
                       Listado de ítems de requerimiento registrados en el sistema.
                     </p>
-                  </div> 
+                  </div>
 
                   <div className="flex items-center gap-3">
-                      {/* selector de filas */}
-                      <div className="hidden md:flex items-center text-[11px] text-slate-500">
-                        <span className="mr-1">Mostrar</span>
-                        <select
-                          value={detallePageSize}
-                          onChange={(e) => setDetallePageSize(Number(e.target.value))}
-                          className="
-                            h-9
-                            rounded-full border border-slate-200 bg-white
-                            px-3 pr-7
-                            text-[11px]
-                            focus:outline-none focus:ring-2 focus:ring-blue-500/60
-                          "
-                        >
-                          <option value={10}>10 filas</option>
-                          <option value={20}>20 filas</option>
-                          <option value={30}>30 filas</option>
-                          <option value={40}>40 filas</option>
-                          <option value={100}>100 filas</option>
-                        </select>
-                      </div>
+                    {/* selector de filas */}
+                    <div className="hidden md:flex items-center text-[11px] text-slate-500">
+                      <span className="mr-1">Mostrar</span>
+                      <select
+                        value={detallePageSize}
+                        onChange={(e) =>
+                          setDetallePageSize(Number(e.target.value))
+                        }
+                        className="h-9 rounded-full border border-slate-200 bg-white
+                          px-3 pr-7 text-[11px]
+                          focus:outline-none focus:ring-2 focus:ring-blue-500/60
+                        "
+                      >
+                        <option value={10}>10 filas</option>
+                        <option value={20}>20 filas</option>
+                        <option value={30}>30 filas</option>
+                        <option value={40}>40 filas</option>
+                        <option value={100}>100 filas</option>
+                      </select>
+                    </div>
 
-                      {/* buscador */}
-                          <div className="relative">
-                            <input
-                              type="text"
-                              value={detalleSearch}
-                              onChange={(e) => setDetalleSearch(e.target.value)}
-                              placeholder="Buscar en la tabla…"
-                              className="
-                                h-9 w-40 md:w-56
-                                rounded-full border border-slate-200 bg-white
-                                pl-7 pr-3 text-[11px]
-                                focus:outline-none focus:ring-2 focus:ring-blue-500/60
-                              "
-                            />
-                            <span className="absolute left-2 top-[7px] text-xs text-slate-400">
-                              🔍
-                            </span>
-                          </div>
+                    {/* buscador */}
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={detalleSearch}
+                        onChange={(e) => setDetalleSearch(e.target.value)}
+                        placeholder="Buscar en la tabla…"
+                        className="h-9 w-40 md:w-56
+                          rounded-full border border-slate-200 bg-white
+                          pl-7 pr-3 text-[11px]
+                          focus:outline-none focus:ring-2 focus:ring-blue-500/60
+                        "
+                      />
+                      <span className="absolute left-2 top-[7px] text-xs text-slate-400">
+                        🔍
+                      </span>
+                    </div>
 
-                          {/* Refrescar */}
-                          <button
-                            type="button"
-                            onClick={fetchDetalleReqs}
-                            className="
-                              h-9 inline-flex items-center
-                              px-4 rounded-full
-                              text-[11px]
-                              border border-slate-300
-                              bg-white hover:bg-slate-100
-                              transition
-                            "
-                          >
-                            🔄 Refrescar
-                          </button>
-                        </div>
-                      </div>
+                    {/* Refrescar */}
+                    <button
+                      type="button"
+                      onClick={fetchDetalleReqs}
+                      className="h-9 inline-flex items-center
+                        px-4 rounded-full text-[11px]
+                        border border-slate-300 bg-white hover:bg-slate-100 transition
+                      "
+                    >
+                      🔄 Refrescar
+                    </button>
+                  </div>
+                </div>
 
-                {/* Contenido: MISMO PATRÓN que Log (flex-1 + overflow interno) */}
+                {/* Contenido */}
                 <div className="flex-1 min-h-0 p-4">
                   {detalleError && (
                     <div className="mb-4 text-xs text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
@@ -1389,36 +1377,45 @@ className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:border-sky-
                     <p className="text-xs text-slate-500">
                       Cargando detalle de requerimientos…
                     </p>
-                  ) : visibleDetalleRows.length === 0 ? (
-                    <p className="text-xs text-slate-500">
-                      No hay registros que coincidan con los filtros.
-                    </p>
                   ) : (
-                    // ⬇️ Contenedor de tabla: bordes + scroll vertical y horizontal interno
                     <div className="h-full max-w-full border border-slate-200 rounded-2xl bg-white overflow-auto">
                       {(() => {
-                        const cols = Object.keys(visibleDetalleRows[0] || {});
+                        const cols =
+                          detalleRows.length > 0
+                            ? Object.keys(detalleRows[0])
+                            : [];
+
+                        if (cols.length === 0) {
+                          return (
+                            <div className="flex h-full items-center justify-center text-xs text-slate-500">
+                              No hay registros que mostrar.
+                            </div>
+                          );
+                        }
 
                         return (
                           <table className="min-w-max text-[11px] text-slate-700">
-                            <thead className="bg-slate-50 uppercase tracking-wide border-b border-slate-200 sticky top-0 z-10">
+                            {/* ENCABEZADOS */}
+                            <thead className="sticky top-0 z-10 bg-sky-50/70 text-xs uppercase tracking-wide border-b border-slate-100 text-slate-600">
                               <tr>
                                 {cols.map((c) => (
                                   <th
                                     key={c}
-                                    className="px-3 py-2 text-left font-semibold"
+                                    className="px-3 py-2 text-left font-semibold whitespace-nowrap"
                                   >
                                     {c.toUpperCase()}
                                   </th>
                                 ))}
                               </tr>
 
-                              {/* fila de filtros por columna */}
-<tr className="bg-sky-50/50 text-[10px] normal-case">
+                              {/* FILA DE FILTROS */}
+                              <tr className="bg-sky-50/50 text-[10px] normal-case">
                                 {cols.map((c) => (
                                   <th key={c} className="px-3 py-1">
                                     <input
-                  className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:border-sky-400 focus:ring-1 focus:ring-sky-300 outline-none"
+                                      className="w-full px-2 py-1 rounded-lg border border-slate-200
+                                        focus:border-sky-400 focus:ring-1 focus:ring-sky-300 outline-none
+                                      "
                                       placeholder="Filtrar"
                                       value={detalleColumnFilters[c] ?? ""}
                                       onChange={(e) =>
@@ -1432,33 +1429,46 @@ className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:border-sky-
                                 ))}
                               </tr>
                             </thead>
+
+                            {/* CUERPO */}
                             <tbody>
-                              {visibleDetalleRows.map((row, idx) => (
-                                <tr
-                                  key={row.id ?? idx}
-                                  className={
-                                    idx % 2 === 0
-                                      ? "bg-white"
-                                      : "bg-slate-50/60 border-t border-slate-100"
-                                  }
-                                >
-                                  {cols.map((c) => {
-                                    const value = row[c];
-                                    const rendered =
-                                      value === null || value === undefined
-                                        ? "—"
-                                        : typeof value === "object"
+                              {visibleDetalleRows.length === 0 ? (
+                                <tr>
+                                  <td
+                                    colSpan={cols.length}
+                                    className="px-4 py-6 text-center text-xs text-slate-500"
+                                  >
+                                    No hay registros que coincidan con los filtros.
+                                  </td>
+                                </tr>
+                              ) : (
+                                visibleDetalleRows.map((row, idx) => (
+                                  <tr
+                                    key={row.id ?? idx}
+                                    className={`${
+                                      idx % 2 === 0
+                                        ? "bg-white"
+                                        : "bg-slate-50/60 border-t border-slate-100"
+                                    } hover:bg-sky-50/40 transition-colors`}
+                                  >
+                                    {cols.map((c) => {
+                                      const value = (row as any)[c];
+                                      const rendered =
+                                        value === null || value === undefined
+                                          ? "—"
+                                          : typeof value === "object"
                                           ? JSON.stringify(value)
                                           : String(value);
 
-                                    return (
-                                      <td key={c} className="px-3 py-2">
-                                        {rendered}
-                                      </td>
-                                    );
-                                  })}
-                                </tr>
-                              ))}
+                                      return (
+                                        <td key={c} className="px-3 py-2">
+                                          {rendered}
+                                        </td>
+                                      );
+                                    })}
+                                  </tr>
+                                ))
+                              )}
                             </tbody>
                           </table>
                         );
@@ -1469,10 +1479,10 @@ className="w-full px-2 py-1 rounded-lg border border-slate-200 focus:border-sky-
               </div>
             </>
           ) : (
+
             <AdminUsersPanel />
           )}
         </section>
-
       </div>
     </main>
   );
