@@ -6,6 +6,33 @@ import { supabase } from "@/lib/supabaseClient";
 
 type AuthMode = "login" | "register";
 
+/**
+ * Crea o actualiza el perfil en public.profiles usando user_id como clave única.
+ */
+async function ensureProfile(userId: string, email: string | null) {
+  if (!userId) return;
+
+  const safeEmail = email ?? "";
+
+  const { error } = await supabase
+    .from("profiles")
+    .upsert(
+      {
+        user_id: userId,
+        email: safeEmail,
+        role: "user",    // puedes cambiar el rol por defecto
+        is_active: true, // o false si quieres aprobarlos primero
+      },
+      {
+        onConflict: "user_id",
+      }
+    );
+
+  if (error) {
+    console.error("Error creando/actualizando profile:", error);
+  }
+}
+
 export default function AuthPage() {
   const router = useRouter();
   const [checkingSession, setCheckingSession] = useState(true);
@@ -23,8 +50,10 @@ export default function AuthPage() {
         if (error) {
           console.error("Error getSession:", error);
         }
-        if (data.session) {
-          // Ya está logueado: mandar directo al panel
+        if (data.session?.user) {
+          const user = data.session.user;
+          // Aseguramos que tenga perfil
+          await ensureProfile(user.id, user.email ?? null);
           router.replace("/cotizaciones");
           return;
         }
@@ -53,31 +82,52 @@ export default function AuthPage() {
 
     try {
       if (mode === "login") {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
         if (error) {
+          console.error("Error signIn:", error);
           setMessage("❌ Credenciales incorrectas o usuario no existe.");
           return;
         }
 
-        // ✅ Login ok → ir a /cotizaciones
+        const user = data.user;
+        if (user) {
+          // ✅ nos aseguramos de que exista su fila en profiles
+          await ensureProfile(user.id, user.email ?? email);
+        }
+
         router.replace("/cotizaciones");
       } else {
-        const { error } = await supabase.auth.signUp({
+        const siteUrl =
+          process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin;
+
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            // Después de confirmar correo, que vuelva a /auth
+            emailRedirectTo: `${siteUrl}/auth`,
+          },
         });
 
         if (error) {
+          console.error("Error signUp:", error);
           setMessage("❌ No se pudo registrar el usuario.");
           return;
         }
 
+        const user = data.user;
+        // Si no tienes confirmación obligatoria por correo, user suele venir lleno.
+        // Si sí tienes confirmación, el perfil se podrá crear luego de su primer login.
+        if (user) {
+          await ensureProfile(user.id, user.email ?? email);
+        }
+
         setMessage(
-          "✅ Usuario registrado. Revisa tu correo si se requiere confirmación."
+          "✅ Usuario registrado. Revisa tu correo y vuelve a ingresar por esta misma página."
         );
         setMode("login");
       }
@@ -181,8 +231,8 @@ export default function AuthPage() {
         </form>
 
         <p className="mt-4 text-[11px] text-center text-slate-400">
-          Más adelante aquí se puede agregar recuperación de contraseña
-          y gestión de roles por pestañas.
+          Más adelante aquí se puede agregar recuperación de contraseña y
+          gestión de roles por pestañas.
         </p>
       </div>
     </main>

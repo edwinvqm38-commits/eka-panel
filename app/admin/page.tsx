@@ -11,14 +11,7 @@ export default function AdminRoutePage() {
     <main className="h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100">
       <div className="w-full h-full flex gap-6 px-6 py-6">
         {/* SIDEBAR */}
-        <aside
-          className={`
-            hidden md:flex flex-col
-            bg-white/90 border border-slate-200 shadow-xl rounded-3xl
-            px-3 py-4
-            w-64
-          `}
-        >
+        <aside className="w-64 shrink-0 bg-white border-r">
           {/* HEADER LOGO */}
           <div className="flex items-center gap-3 px-2 pb-4 border-b border-slate-200">
             <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-blue-500 text-sm font-bold text-white shadow">
